@@ -53,8 +53,7 @@ jobs:
           git add .
           git commit -q -m "build log ${{ github.run_number }}"
           git push -q -f "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git" build-logs
-
-      - name: Name the APK
+                - name: Name the APK
         if: steps.build.outputs.status == '0'
         run: cp "${{ steps.build.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk" MicroClicker.apk
 
@@ -62,4 +61,12 @@ jobs:
         if: steps.build.outputs.status == '0'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build
+          tag_name: build-${{ github.run_number }}
+          name: Micro Clicker build ${{ github.run_number }}
+          body: Download MicroClicker.apk below and install it.
+          files: MicroClicker.apk
+          make_latest: true
+
+      - name: Fail if build failed
+        if: steps.build.outputs.status != '0'
+        run: exit 1
