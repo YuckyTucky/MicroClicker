@@ -1,72 +1,52 @@
 name: Build APK
-
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.10.2
-
-      - name: Build debug APK
+      - name: Build
         id: build
         run: |
           set +e
           unzip -q *.zip -d proj
-          D=$(dirname "$(find proj -name settings.gradle.kts | head -1)")
-          echo "dir=$D" >> "$GITHUB_OUTPUT"
-          cd "$D"
-          gradle assembleDebug --stacktrace --no-daemon > "$GITHUB_WORKSPACE/build.log" 2>&1
+          cd proj
+          gradle assembleDebug --stacktrace --no-daemon > ../build.log 2>&1
           echo "status=$?" >> "$GITHUB_OUTPUT"
           exit 0
-
-      - name: Save build log
+      - name: Log
         if: always()
         env:
           TOKEN: ${{ github.token }}
         run: |
-          mkdir -p /tmp/log
-          tail -n 400 build.log > /tmp/log/last-build.log
-          grep -E '^e: |What went wrong|error:|FAILURE' build.log | head -150 > /tmp/log/errors.txt || true
-          echo "status=${{ steps.build.outputs.status }} run=${{ github.run_number }}" > /tmp/log/status.txt
-          rm -rf /tmp/wt && mkdir /tmp/wt && cd /tmp/wt
+          mkdir /tmp/wt && cd /tmp/wt
+          tail -n 400 $GITHUB_WORKSPACE/build.log > last-build.log
+          grep -E '^e: |What went wrong|error:|FAILURE' $GITHUB_WORKSPACE/build.log | head -150 > errors.txt || true
+          echo "status=${{ steps.build.outputs.status }} run=${{ github.run_number }}" > status.txt
           git init -q
           git checkout -q -b build-logs
-          git config user.name "github-actions"
-          git config user.email "actions@users.noreply.github.com"
-          cp /tmp/log/* .
+          git config user.name gha
+          git config user.email gha@users.noreply.github.com
           git add .
-          git commit -q -m "build log ${{ github.run_number }}"
+          git commit -q -m log
           git push -q -f "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git" build-logs
-                - name: Name the APK
-        if: steps.build.outputs.status == '0'
-        run: cp "${{ steps.build.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk" MicroClicker.apk
-
-      - name: Publish APK
+      - name: Release
         if: steps.build.outputs.status == '0'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Micro Clicker build ${{ github.run_number }}
-          body: Download MicroClicker.apk below and install it.
-          files: MicroClicker.apk
+          files: proj/app/build/outputs/apk/debug/app-debug.apk
           make_latest: true
-
-      - name: Fail if build failed
-        if: steps.build.outputs.status != '0'
-        run: exit 1
