@@ -27,7 +27,7 @@ jobs:
         id: build
         run: |
           set +e
-          unzip -q MicroClicker.zip -d proj
+          unzip -q *.zip -d proj
           D=$(dirname "$(find proj -name settings.gradle.kts | head -1)")
           echo "dir=$D" >> "$GITHUB_OUTPUT"
           cd "$D"
@@ -62,12 +62,4 @@ jobs:
         if: steps.build.outputs.status == '0'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: Micro Clicker build ${{ github.run_number }}
-          body: Download MicroClicker.apk below and install it.
-          files: MicroClicker.apk
-          make_latest: true
-
-      - name: Fail if build failed
-        if: steps.build.outputs.status != '0'
-        run: exit 1
+          tag_name: build
